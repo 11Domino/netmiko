@@ -1,19 +1,20 @@
-import time
 from netmiko.cisco_base_connection import CiscoSSHConnection
 from netmiko.cisco_base_connection import CiscoFileTransfer
-from netmiko import log
 
 
 class AristaBase(CiscoSSHConnection):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("fast_cli", True)
+        kwargs.setdefault("_legacy_mode", False)
+        return super().__init__(*args, **kwargs)
+
     def session_preparation(self):
         """Prepare the session after the connection has been established."""
-        self._test_channel_read(pattern=r"[>#]")
+        cmd = "terminal width 511"
+        # Arista will echo immediately and then when the device really responds (like NX-OS)
+        self.set_terminal_width(command=cmd, pattern=r"Width set to")
+        self.disable_paging(cmd_verify=False, pattern=r"Pagination disabled")
         self.set_base_prompt()
-        self.disable_paging()
-        self.set_terminal_width(command="terminal width 511")
-        # Clear the read buffer
-        time.sleep(0.3 * self.global_delay_factor)
-        self.clear_buffer()
 
     def check_config_mode(self, check_string=")#", pattern=""):
         """
@@ -24,13 +25,14 @@ class AristaBase(CiscoSSHConnection):
 
         Can also be (s2)
         """
-        log.debug(f"pattern: {pattern}")
         self.write_channel(self.RETURN)
-        output = self.read_until_pattern(pattern=pattern)
-        log.debug(f"check_config_mode: {repr(output)}")
+        # You can encounter an issue here (on router name changes) prefer delay-based solution
+        if not pattern:
+            output = self._read_channel_timing()
+        else:
+            output = self.read_until_pattern(pattern=pattern)
         output = output.replace("(s1)", "")
         output = output.replace("(s2)", "")
-        log.debug(f"check_config_mode: {repr(output)}")
         return check_string in output
 
     def _enter_shell(self):
