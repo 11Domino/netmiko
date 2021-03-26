@@ -52,5 +52,5 @@ setup(
         "pyserial",
         "textfsm",
     ],
-    extras_require={"test": ["pyyaml==5.1.2", "pytest>=5.1.2"]},
+    extras_require={"test": ["pyyaml==5.4", "pytest>=5.1.2"]},
 )
